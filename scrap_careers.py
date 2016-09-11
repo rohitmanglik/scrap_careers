@@ -17,6 +17,7 @@ import xlwt
 from xlutils.copy import copy
 from xlrd import open_workbook
 import sys
+import os
 
 try:
     reload(sys)
@@ -31,7 +32,7 @@ TEMP = False #Just a debug variable meant to be removed, It turns off pie-ug pie
 PAGE_OFFSET = 0
 ENTRY_OFFSET = 0
 GLOBAL_OFFSET = 0
-
+OUTPUT_FILE='output\\data_careers_1_100.xls'
 CHECKPOINT=open('checkpoint.dat','r+')
 HEADER=['Name','Type','Phone1','Phone2','Phone3','Phone4','Phone5','Logo URL','Also Known As','Location','Estd.','Website','Mail','Ownership','Approved By','Affiliated to','Link-Affiliated to', 'Facilities', 'State Rank', 'Facebook',
 'Twitter', 'Youtube', 'Wikipedia', 'Total Faculty', 'Ratio-Student:Faculty', 'UG Pie Chart','PG Pie Chart', 'Notable Alumni','Top Following States', 'Admission Mode', 'Gender Ratio', 'Avg. Age','Geometric Insights',
@@ -81,7 +82,7 @@ if NEW_XLS:
 else:
     PAGE_OFFSET,ENTRY_OFFSET,GLOBAL_OFFSET=map(int,CHECKPOINT.readlines())
     
-    wb = copy(open_workbook('data_careers_1_100.xls'))
+    wb = copy(open_workbook(OUTPUT_FILE))
     ws = wb.get_sheet(0)
     print("Found",GLOBAL_OFFSET,"entries completed")
     print("Resuming from page ",PAGE_OFFSET,"and entry no.:",ENTRY_OFFSET)
@@ -662,7 +663,7 @@ while count_coll <= 10:
                     wid=min(len(data)*380,9000)
                     if ws.col(col).width<wid:
                         ws.col(col).width=wid
-                wb.save('data_careers_1_100.xls')
+                wb.save(OUTPUT_FILE)
                 
 
                 driver.find_element_by_tag_name("body").send_keys(Keys.CONTROL + 'w')
