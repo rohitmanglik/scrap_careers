@@ -32,7 +32,7 @@ TEMP = False  # Just a debug variable meant to be removed, It turns off pie-ug p
 PAGE_OFFSET = 0
 ENTRY_OFFSET = 0
 GLOBAL_OFFSET = 0
-OUTPUT_FILE = 'output\\data_careers_1_100.xls'
+OUTPUT_FILE=os.path.join(os.path.dirname(__file__),"output",'data_careers_1_100.xls')
 CHECKPOINT = open('checkpoint.dat', 'r+')
 HEADER = ['Name', 'Type', 'Phone1', 'Phone2', 'Phone3', 'Phone4', 'Phone5', 'Logo URL', 'Also Known As', 'Location', 'Estd.', 'Website', 'Mail', 'Ownership', 'Approved By', 'Affiliated to', 'Link-Affiliated to', 'Facilities', 'State Rank', 'Facebook',
           'Twitter', 'Youtube', 'Wikipedia', 'Total Faculty', 'Ratio-Student:Faculty', 'UG Pie Chart', 'PG Pie Chart', 'Notable Alumni', 'Top Following States', 'Admission Mode', 'Gender Ratio', 'Avg. Age', 'Geometric Insights',
