@@ -18,16 +18,11 @@ from xlutils.copy import copy
 from xlrd import open_workbook
 import sys
 import os
+from phpserialize import serialize
 
-try:
-    reload(sys)
-    sys.setdefaultencoding('utf8')
-except NameError:
-    # Python3: sys already set to UTF-8 Encoding
-    pass
 
 NEW_XLS = 0  # To write into new file, change to '1'
-TEMP = False  # Just a debug variable meant to be removed, It turns off pie-ug pie-pg and courses offered
+
 
 PAGE_OFFSET = 0
 ENTRY_OFFSET = 0
@@ -35,7 +30,8 @@ GLOBAL_OFFSET = 0
 OUTPUT_FILE=os.path.join(os.path.dirname(__file__),"output",'data_careers_1_100.xls')
 CHECKPOINT = open('checkpoint.dat', 'r+')
 HEADER = ['Name', 'Type', 'Phone1', 'Phone2', 'Phone3', 'Phone4', 'Phone5', 'Logo URL', 'Also Known As', 'Location', 'Estd.', 'Website', 'Mail', 'Ownership', 'Approved By', 'Affiliated to', 'Link-Affiliated to', 'Facilities', 'State Rank', 'Facebook',
-          'Twitter', 'Youtube', 'Wikipedia', 'Total Faculty', 'Ratio-Student:Faculty', 'UG Pie Chart', 'PG Pie Chart', 'Notable Alumni', 'Top Following States', 'Admission Mode', 'Gender Ratio', 'Avg. Age', 'Geometric Insights',
+          'Twitter', 'Youtube', 'Wikipedia', 'Total Faculty', 'Ratio-Student:Faculty', 'UG Pie Chart', 'PG Pie Chart', 'Notable Alumni', 'Top Following State#1', 'Top Following State#2', 'Admission Mode (Exam, Type, Mode)', 'Gender Ratio', 'Avg. Age Male',
+          'Avg. Age Female', 'GeoInsights North', 'GeoInsights East', 'GeoInsights South', 'GeoInsights West', 'GeoInsights Central', 'GeoInsights NorthEast',
           'Images', 'Videos', 'Total Courses', 'Total UG', 'Total PG', 'Courses']
 
 
@@ -81,6 +77,7 @@ if NEW_XLS:
     for col, head in enumerate(HEADER):
         ws.write(0, col, head, ulstyle)
         ws.col(col).width = min(len(head) * 380, 6000)
+    wb.save(OUTPUT_FILE)
 else:
     PAGE_OFFSET, ENTRY_OFFSET, GLOBAL_OFFSET = map(int, CHECKPOINT.readlines())
 
@@ -113,8 +110,7 @@ while count_coll <= 10:
     if flag:
         time.sleep(6)  # DDOS protection requires 5 sec. sleep for first get
         flag = False
-    # time.sleep(6)############################IF CLOUDFLARE PROBLEM or use
-    # By. dynamic ele
+
 
     colls_url = driver.find_elements_by_xpath(
         "//div[@class='content-box f-right']")
@@ -146,12 +142,6 @@ while count_coll <= 10:
             typeofcoll = ''
         print(typeofcoll)
 
-        phones_nos = ''
-        phone1 = ''
-        phone2 = ''
-        phone3 = ''
-        phone4 = ''
-        phone5 = ''
 
         phones = coll.find_element_by_xpath(
             ".//div[@class='clg-contact clgAtt']").text.replace('Contact: ', '') + ",,,,,"
@@ -208,15 +198,12 @@ while count_coll <= 10:
             ".//a", attrib='href', parent=info[7])
         print("Affilited to Link:", affiliated_to_link)
 
-        facilities = '< '
+        facilities_list = []
         for x in driver.find_elements_by_xpath("//div[@class='facilitylist']//li"):
             y = x.get_attribute('innerHTML')
-            facilities += y[y.find('</i>'):].replace('</i>', ' # ')
-        facilities += ' >'
-        print('Facilities:', facilities)
-
-        #stu_to_fact = driver.find_element_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div[2]/div/div/div/div/span")
-        # print(stu_to_fact)##########################################format
+            facilities_list.append( y[y.find('</i>')+4:])
+        
+        print('Facilities:', facilities_list)
 
         state_rank = ''
 
@@ -224,32 +211,32 @@ while count_coll <= 10:
             "/html/body/div/div/div/div[3]/div/div/div/div[3]/div/div/div/span")
         if 'A' not in state_rank:
             state_rank = ''
-        print('College Grade:', state_rank)  # PG KYUN
+        print('College Grade:', state_rank)
 
         #no_courses = driver.find_element_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div[4]/div/h4").text
         #no_courses = int(no_courses[no_courses.find(':'):].replace(':',''))
         # print(no_courses)
 
-        facebook = driver.find_element_by_xpath(
-            "/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li/a").get_attribute('href')
+        facebook = safe_get_xpath(
+            "/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li/a",attrib='href')
         if 'javascript' in str(facebook):
             facebook = ''
         print(facebook)
 
-        twitter = driver.find_element_by_xpath(
-            '/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li[2]/a').get_attribute('href')
+        twitter = safe_get_xpath(
+            '/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li[2]/a',attrib='href')
         if 'javascript' in str(twitter):
             twitter = ''
         print(twitter)
 
-        youtube = driver.find_element_by_xpath(
-            '/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li[3]/a').get_attribute('href')
+        youtube = safe_get_xpath(
+            '/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li[3]/a',attrib='href')
         if 'javascript' in str(youtube):
             youtube = ''
         print(youtube)
 
-        wiki = driver.find_element_by_xpath(
-            '/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li[4]/a').get_attribute('href')
+        wiki = safe_get_xpath(
+            '/html/body/div/div/div/div[2]/div/div/div/div[2]/ul/li[4]/a',attrib='href')
         if 'javascript' in str(wiki):
             wiki = ''
         print(wiki)
@@ -274,93 +261,10 @@ while count_coll <= 10:
         pie_name_li = []
         pie_intake_li = []
 
-        if check_exists_by_xpath("//div[@id='chart_div_ug']") and TEMP:
-
-            pie_temp = driver.find_element_by_xpath(
-                "//div[@id='chart_div_ug']/div/div/div")
-            #/html/body/div/div/div/div[3]/div/div/div/div[4]/div/div[2]/div/div
-            #/html/body/div/div/div/div[3]/div/div/div/div[4]/div/div[2]/div/div/div/div/div/svg/g/g
-            #/html/body/div/div/div/div[3]/div/div/div/div[4]/div/div[2]/div/div/div/div/div/svg/g/g/circle
-            block_li = pie_temp.find_elements_by_xpath(
-                ".//*[local-name() = 'svg']/*[local-name() = 'g']/*[local-name() = 'g']")
-            for y in block_li:
-                # print(y.get_attribute('outerHTML'))
-                # print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-                pie_color_li.append(y.find_element_by_xpath(
-                    ".//*[local-name() = 'circle']").get_attribute('fill'))
-                k = y.find_elements_by_xpath(".//*[local-name() = 'text']")
-                k1 = ''
-                for x in k:
-                    k1 += x.text + ' '
-                pie_name_li.append(k1)
-                pie_intake_li.append('')
-
-            print(pie_name_li)
-            print(pie_color_li)
-            temp_li = pie_temp.find_elements_by_xpath(
-                ".//*[local-name() = 'svg']/*[local-name() = 'g']")
-            for x in range(1, len(temp_li) - 1):
-                # print(pie_intake_li)
-                try:
-                    pie_intake_li[pie_color_li.index(temp_li[x].find_element_by_xpath(
-                        ".//*[local-name() = 'path']").get_attribute('fill'))] = temp_li[x].find_element_by_xpath(".//*[local-name() = 'text']").text
-                except NoSuchElementException:
-                    continue
-
-        # print(pie_color_li)
-        print(pie_name_li)
-        print(pie_intake_li)
-
-        str_ug_pie = ''
-        for x in range(len(pie_name_li)):
-            str_ug_pie += '< ' + pie_name_li[x] + \
-                ' : ' + pie_intake_li[x] + ' >'
-
-        # pg_PIE
-        pie2_color_li = []
-        pie2_name_li = []
-        pie2_intake_li = []
-
-        if check_exists_by_xpath("//div[@id='chart_div_pg']") and TEMP:
-            pie_temp = driver.find_element_by_xpath(
-                "//div[@id='chart_div_pg']/div/div/div")
-            #/html/body/div/div/div/div[3]/div/div/div/div[4]/div/div[2]/div/div
-            #/html/body/div/div/div/div[3]/div/div/div/div[4]/div/div[2]/div/div/div/div/div/svg/g/g
-            #/html/body/div/div/div/div[3]/div/div/div/div[4]/div/div[2]/div/div/div/div/div/svg/g/g/circle
-            block_li = pie_temp.find_elements_by_xpath(
-                ".//*[local-name() = 'svg']/*[local-name() = 'g']/*[local-name() = 'g']")
-            for y in block_li:
-                # print(y.get_attribute('outerHTML'))
-                # print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-                pie2_color_li.append(y.find_element_by_xpath(
-                    ".//*[local-name() = 'circle']").get_attribute('fill'))
-                k = y.find_elements_by_xpath(".//*[local-name() = 'text']")
-                k1 = ''
-                for x in k:
-                    k1 += x.text + ' '
-                pie2_name_li.append(k1)
-                pie2_intake_li.append('')
-
-            temp2_li = pie_temp.find_elements_by_xpath(
-                ".//*[local-name() = 'svg']/*[local-name() = 'g']")
-            for x in range(1, len(temp2_li) - 1):
-                try:
-                    pie2_intake_li[pie2_color_li.index(temp2_li[x].find_element_by_xpath(
-                        ".//*[local-name() = 'path']").get_attribute('fill'))] = temp2_li[x].find_element_by_xpath(".//*[local-name() = 'text']").text
-                except NoSuchElementException:
-                    continue
-
-        # print(pie2_color_li)
-        print(pie2_name_li)
-        print(pie2_intake_li)
-
-        str_pg_pie = ''
-        for x in range(len(pie2_name_li)):
-            str_pg_pie += '< ' + \
-                pie2_name_li[x] + ' : ' + pie2_intake_li[x] + ' >'
 
         # Notable alumni
         str_alumni = ''
+        alumni_list=[]
         if check_exists_by_xpath("//div[@class='custom-slider-alumni']"):
             alumni_temp = driver.find_element_by_xpath(
                 "//div[@class='custom-slider-alumni']")
@@ -384,16 +288,15 @@ while count_coll <= 10:
                     alumni_linked_in = x.find_element_by_xpath(
                         ".//div[@id='social-platforms']//a").get_attribute('href')
                     # print(alumni_linked_in)
-                    str_alumni += '< ' + 'Photo Link : ' + alumni_img + ' # Name : ' + alumni_name + ' # Designation : ' + \
-                        alumni_designation + ' # Company : ' + alumni_company + \
-                        ' # LinkedIn Link : ' + alumni_linked_in + ' >'
+                    alumni_list.append({'photo' : alumni_img , 'name' : alumni_name , 'designation' : alumni_designation , 'company' : alumni_company ,'linkedin' : alumni_linked_in })
                 except NoSuchElementException:
                     continue
+        str_alumni = serialize(alumni_list).decode('utf8')
         print('Notable alumni : ')
-        print(str_alumni)
+
 
         # admission
-        str_mode = ''
+        admis_mode = []
         gender_ratio = ''
         avg_age = ''
         temp_mode = driver.find_elements_by_xpath(
@@ -402,10 +305,9 @@ while count_coll <= 10:
             mode_exam_name = safe_get_xpath('.//td[1]/a', parent=x)
             mode_type = safe_get_xpath('.//td[2]', parent=x)
             mode_level = safe_get_xpath('.//td[3]', parent=x)
-            str_mode += '< ' + 'Exam : ' + mode_exam_name + ' # Type : ' + \
-                mode_type + ' # Level : ' + mode_level + ' >'
-            print(mode_exam_name + ' | ' + mode_type + ' | ' + mode_level)
-            print(str_mode)
+            admis_mode.append( {'exam_name':mode_exam_name ,'exam_type' : mode_type ,'exam_level' : mode_level})
+            
+        str_mode=serialize(admis_mode).decode('utf8')
 
         # insights
         try:
@@ -417,10 +319,11 @@ while count_coll <= 10:
         except NoSuchElementException:
             print('-')
         try:
-            avg_age = driver.find_element_by_xpath("//div[@id='block-college-college-insight-data']").find_element_by_xpath(
-                ".//div[@class='countBlockRight']/div/p").get_attribute('innerHTML').replace('<span class="clearfix"></span>', ' ')
-            print('Avg. Age : ')
-            print(avg_age)  # FORMAT
+            t = driver.find_element_by_xpath("//div[@id='block-college-college-insight-data']").find_element_by_xpath(
+                ".//div[@class='countBlockRight']/div/p").get_attribute('innerHTML').replace('<span class="clearfix"></span>', ' ').split('=')
+            avg_ageM,avg_ageF=t[1][1:3],t[2][1:3]
+            print('Avg. Age : M,F')
+            print(avg_ageM,avg_ageF)
         except NoSuchElementException:
             print('-')
 
@@ -429,48 +332,51 @@ while count_coll <= 10:
         in_name_li = []
         in_color_li = []
         in_data_li = []
+        skip=False
+        if check_exists_by_xpath("//div[@id='piechartgeo']"):
+            try:
+                driver.implicitly_wait(0.5)
+                temp_geo = driver.find_element_by_xpath("//div[@id='piechartgeo']")
+                temp_g = temp_geo.find_elements_by_xpath(
+                    ".//*[local-name() = 'svg']/*[local-name() = 'g']")
+                temp_blocks = temp_g[0].find_elements_by_xpath(
+                    ".//*[local-name() = 'g']")
+            except:
+                skip=True
+            driver.implicitly_wait(0)
+            if not skip:
+                for x in temp_blocks[::2]:
+                    in_name_li.append(x.find_element_by_xpath(
+                        ".//*[local-name() = 'text']").text)                
+                    in_color_li.append(x.find_element_by_xpath(
+                        ".//*[local-name() = 'circle']").get_attribute('fill'))
+                    in_data_li.append('')
+                print(in_color_li)
+                print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
 
-        if check_exists_by_xpath("//div[@id='piechartgeo']") == True:
-            temp_geo = driver.find_element_by_xpath("//div[@id='piechartgeo']")
-            temp_g = temp_geo.find_elements_by_xpath(
-                ".//*[local-name() = 'svg']/*[local-name() = 'g']")
-            temp_blocks = temp_g[0].find_elements_by_xpath(
-                ".//*[local-name() = 'g']")
+                for x in temp_g[1:]:
+                    # print(x.get_attribute('innerHTML'))
+                    # print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                    try:
+                        in_data_li[in_color_li.index(x.find_element_by_xpath(".//*[local-name() = 'path']").get_attribute(
+                            'fill'))] = x.find_element_by_xpath(".//*[local-name() = 'text']").text
+                    except NoSuchElementException:
+                        continue
+                    # print(in_data_li)
+                print("name",in_name_li)
+                print("data",in_data_li)
 
-            for x in temp_blocks[::2]:
-                in_name_li.append(x.find_element_by_xpath(
-                    ".//*[local-name() = 'text']").text)
-                # print(in_name_li)
-                # print(x.get_attribute('innerHTML'))
-                in_color_li.append(x.find_element_by_xpath(
-                    ".//*[local-name() = 'circle']").get_attribute('fill'))
-                in_data_li.append('')
-            print(in_color_li)
-            print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^')
-
-            for x in temp_g[1:]:
-                # print(x.get_attribute('innerHTML'))
-                # print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-                try:
-                    in_data_li[in_color_li.index(x.find_element_by_xpath(".//*[local-name() = 'path']").get_attribute(
-                        'fill'))] = x.find_element_by_xpath(".//*[local-name() = 'text']").text
-                except NoSuchElementException:
-                    continue
-                # print(in_data_li)
-            print(in_name_li)
-            print(in_data_li)
-
-        str_in_geo = ''
-        for x in range(len(in_name_li)):
-            str_in_geo += '< ' + in_name_li[x] + ' : ' + in_data_li[x] + ' >'
+##        str_in_geo = ''
+##        for x in range(len(in_name_li)):
+##            str_in_geo += '< ' + in_name_li[x] + ' : ' + in_data_li[x] + ' >'
 
         # top_following_states
-        str_top_states = ''
-        if check_exists_by_xpath("//div[@class='college-chart-common-div']/ul") == True:
+        top_states = []
+        if check_exists_by_xpath("//div[@class='college-chart-common-div']/ul"):
             for x in driver.find_elements_by_xpath("//div[@class='college-chart-common-div']/ul/li/div"):
-                str_top_states += '< ' + x.find_element_by_xpath(
-                    './/h5').text + ' : ' + x.find_element_by_xpath(".//span").text + " >"
-        print(str_top_states)
+                top_states.append(serialize({ safe_get_xpath(
+                    './/h5',parent=x) : safe_get_xpath(".//span",parent=x) }).decode('utf8'))
+        print(top_states)
 
         # gallery
         print('Gallery : ')
@@ -521,152 +427,197 @@ while count_coll <= 10:
             "/html/body/div/div/div/div[3]/div/div/div/div/div/div/h4").text.replace('Number of Courses Available:', '')
         print(courses)
         pg_exists = 0
-        if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/div") == True:
+        if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/div"):
             tot_ug = driver.find_element_by_xpath(
                 "/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/div").text.replace('UG (', '').replace(')', '')
         print('UG : ' + tot_ug)
-        if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/span") == True:
+        if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/span"):
             pg_exists = 1
             tot_pg = driver.find_element_by_xpath(
                 "/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/span").text.replace('PG (', '').replace(')', '')
         print('PG : ' + tot_pg)
 
-        '''
-                #ug_pie
-                if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div[2]/div/div/div/div/div/svg/g") == True:
-                        count_ug = len(driver.find_elements_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div[2]/div/div/div/div/div/svg/g"))
-                        ug_pie_data = driver.find_elements_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div[2]/div/div/div/div/div/svg/g")
-                        for x in ug_pie_data:
-                                print(x.text)
-
-                #pg_pie
-                if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div[3]/div/div/div/div/div/svg/g") == True:
-                        count_pg = len(driver.find_elements_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div[3]/div/div/div/div/div/svg/g"))
-                        pg_pie_data = driver.find_elements_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div[3]/div/div/div/div/div/svg/g")
-                        for x in pg_pie_data:
-                                print(x.text)
-                
-
-
-                #all_courses = driver.find_elements_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div[2]/div[2]/div[2]/div")
-                
-                i=0
-                for x in range(len(all_courses)//2):
-                        course_logo = all_courses[i].find_element_by_xpath(".//span[@class='accordion_course_image']/img").get_attribute('src')
-                        print(course_logo)
-                        
-                        i+=1
-                        eligibility = all_courses[i].find_element_by_xpath(".//div[@class='match-interest-eligibillity']").text
-                        print(eligibility)
-
-                        temp = all_courses[i].find_elements_by_xpath("div[@class='degree relDiv']")
-                        for x in temp:
-                                print(x.get_attribute('outerHTML'))
-                        degree = temp[0].find_element_by_xpath(".//span").text
-                        print(degree)
-
-                        duration = temp[1].find_element_by_xpath(".//span").text
-                        print(duration)
-
-                        mode = temp[2].find_element_by_xpath(".//span").text
-                        print(mode)
-                '''
-
+        courses_list=[]
         while(True):
 
             all_courses = driver.find_elements_by_xpath(
                 "/html/body/div/div/div/div[3]/div/div/div/div/div[2]/div[2]/div[2]/div")
 
-            i = 0
-            for x in range(len(all_courses) // 2):
-                i += 1
-                if i > 2 and not TEMP:
-                    break
+            
+            for x in all_courses[1::2]:
+                
 
                 print(
                     '######################################################################')
                 # print(all_courses[i].find_element_by_xpath(".//a[@class='apply_btn']").get_attribute('outerHTML'))
 
-                clink = all_courses[i].find_element_by_xpath(
-                    ".//a[@class='apply_btn']").get_attribute('href')
+                clink = safe_get_xpath(
+                    ".//a[@class='apply_btn']", parent = x , attrib='href')
                 #clink = 'http://www.engineering.careers360.com/colleges/pes-university-bangalore/courses/m-tech-digital-electronics-and-communications-systems'
+                if not clink:
+                    continue
                 driver.find_element_by_tag_name(
                     "body").send_keys(Keys.CONTROL + 't')
                 #driver = webdriver.Firefox()
                 try:
                     driver.get(clink)
                 except:
-                    break
+                    continue
 
-                cname = safe_get_xpath(
+                course_dict = dict()
+                course_dict['cname'] = safe_get_xpath(
                     "/html/body/div/div/div/div[3]/div/div/div/div/h2")
-                print(cname)
+                print(course_dict['cname'])
 
                 eligibility = ''
                 #eligibility = driver.find_element_by_xpath("//span[@class='more-eligibility']").get_attribute('innerHTML').replace('<span class="readless-eligibility" style="color:blue; cursor:pointer;">...See Less</span>','')
 
                 print('Eligibility : ')
-                if check_exists_by_xpath("//span[@class='more-eligibility']") == True:
-                    eligibility = driver.find_element_by_xpath("//span[@class='more-eligibility']").get_attribute('innerHTML').replace(
+                
+                eligibility = safe_get_xpath("//span[@class='more-eligibility']",attrib='innerHTML').replace(
                         '<span class="readless-eligibility" style="color:blue; cursor:pointer;">...See Less</span>', '')
-                elif check_exists_by_xpath("//div[@class='default-elig']") == True:
-                    eligibility = driver.find_element_by_xpath(
-                        "//div[@class='default-elig']").text
+                if not eligibility:
+                    eligibility = safe_get_xpath(
+                        "//div[@class='default-elig']")
+                    
+                course_dict['eligibility']=eligibility
                 print(eligibility)
 
                 all_cdet = driver.find_elements_by_xpath(
                     "//div[@class='coursesPageLableInnerSec']")
 
-                str_temp = ''
+                
                 for y in all_cdet:
-                    str_temp += ' # ' + \
-                        y.find_element_by_xpath(
-                            ".//strong").text + ' : ' + y.find_element_by_xpath(".//p").text
-                    print(y.find_element_by_xpath(".//strong").text + ' : ' +
-                          y.find_element_by_xpath(".//p").text)  # CSV TAKE CARE
-
-                det = ''
-                if check_exists_by_xpath("//span[@class='moreCourseDetails']") == True:
-                    det = driver.find_element_by_xpath("//span[@class='moreCourseDetails']").get_attribute('innerHTML').replace(
+                    course_dict[safe_get_xpath(".//strong",parent=y).lower()] =  safe_get_xpath(".//p",parent=y)
+                    
+                
+                det = safe_get_xpath("//span[@class='moreCourseDetails']",attrib='innerHTML').replace(
                         '<span class="readlessCourseDetails" style="color:blue; cursor:pointer;">...See Less</span>', '')
-                elif check_exists_by_xpath("//div[@class='coursesPageLableDetail']") == True:
+                if check_exists_by_xpath("//div[@class='coursesPageLableDetail']") == True and not det:
                     detail = driver.find_element_by_xpath(
                         "//div[@class='coursesPageLableDetail']")
-                    print(detail.find_element_by_xpath(".//strong").text +
-                          ' : ' + detail.find_element_by_xpath(".//div").text)
-                    det = detail.find_element_by_xpath(".//div").text
+                    
+                    det = safe_get_xpath(".//div",parent=detail)
+                course_dict['details']=det
                 print(det)
 
-                i += 1
+                
 
-                str_courses += ('< ' + 'Course Name : ' + cname + ' # Eligibility : ' +
-                                eligibility + str_temp + ' # Details : ' + det + ' >')
+                courses_list.append(course_dict)
 
                 driver.find_element_by_tag_name(
                     "body").send_keys(Keys.CONTROL + 'w')
-                time.sleep(0.5)
-                #driver.find_element_by_tag_name("body").send_keys(Keys.CONTROL
-            if check_exists_by_xpath("//a[@title='Go to next page']") and TEMP == False:
+                time.sleep(0.3)
+                
+
+            
+            clink_nxt_page = safe_get_xpath(
+                "//a[@title='Go to next page']", attrib='href')
+            if not clink_nxt_page:
                 break
-            else:
-                clink_nxt_page = safe_get_xpath(
-                    "//a[@title='Go to next page']", attrib='href')
-                if not clink_nxt_page:
-                    break
 
-                time.sleep(0.5)
-                #driver.find_element_by_tag_name("body").send_keys(Keys.CONTROL + Keys.TAB)
-                driver.get(clink_nxt_page)
-                print(
-                    '\n!!!!!!!!!!!!!!!!!!!!!!!!NEXT!!!PAGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n')
+            time.sleep(0.3)
 
-        str_images = ''
-        for x in li_images:
-            str_images += '< ' + x + ' >'
+            driver.get(clink_nxt_page)
+            
+            print(
+                '\n!!!!!!!!!!!!!!!!!!!!!!!!NEXT!!!PAGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n')
+        
+        skip=False
+        str_courses=serialize(courses_list).decode('utf8')
+        if check_exists_by_xpath("//div[@id='chart_div_ug']"):
+            try:
+                driver.implicitly_wait(2)
+                pie_temp = driver.find_element_by_xpath(
+                "//div[@id='chart_div_ug']/div/div/div")
+                
+            except:
+                print("pie ug not found")
+                skip=True
+            driver.implicitly_wait(0)    
+            if not skip:
+                block_li = pie_temp.find_elements_by_xpath(
+                    ".//*[local-name() = 'svg']/*[local-name() = 'g']/*[local-name() = 'g']")
+                for y in block_li:
+                    # print(y.get_attribute('outerHTML'))
+                    # print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+                    pie_color_li.append(y.find_element_by_xpath(
+                        ".//*[local-name() = 'circle']").get_attribute('fill'))
+                    k = y.find_elements_by_xpath(".//*[local-name() = 'text']")
+                    k1 = ''
+                    for x in k:
+                        k1 += x.text + ' '
+                    pie_name_li.append(k1)
+                    pie_intake_li.append('')
 
-        str_vids = ''
-        for x in li_vids:
-            str_vids += '< ' + x + ' >'
+                print(pie_name_li)
+                print(pie_color_li)
+                temp_li = pie_temp.find_elements_by_xpath(
+                    ".//*[local-name() = 'svg']/*[local-name() = 'g']")
+                for x in range(1, len(temp_li) - 1):
+                    # print(pie_intake_li)
+                    try:
+                        pie_intake_li[pie_color_li.index(temp_li[x].find_element_by_xpath(
+                            ".//*[local-name() = 'path']").get_attribute('fill'))] = temp_li[x].find_element_by_xpath(".//*[local-name() = 'text']").text
+                    except NoSuchElementException:
+                        continue
+
+        # print(pie_color_li)
+        print(pie_name_li)
+        print(pie_intake_li)
+
+        str_ug_pie = serialize(dict(zip(pie_name_li,pie_intake_li))).decode('utf8')
+
+        # pg_PIE
+        pie2_color_li = []
+        pie2_name_li = []
+        pie2_intake_li = []
+        skip = False
+        if check_exists_by_xpath("//div[@id='chart_div_pg']"):
+            try:
+                driver.implicitly_wait(2)
+                pie_temp = driver.find_element_by_xpath(
+                "//div[@id='chart_div_pg']/div/div/div")
+            except:
+                skip=True
+                
+            driver.implicitly_wait(0)    
+            
+            if not skip:
+                block_li = pie_temp.find_elements_by_xpath(
+                    ".//*[local-name() = 'svg']/*[local-name() = 'g']/*[local-name() = 'g']")
+                for y in block_li:
+                    pie2_color_li.append(y.find_element_by_xpath(
+                        ".//*[local-name() = 'circle']").get_attribute('fill'))
+                    k = y.find_elements_by_xpath(".//*[local-name() = 'text']")
+                    k1 = ''
+                    for x in k:
+                        k1 += x.text + ' '
+                    pie2_name_li.append(k1)
+                    pie2_intake_li.append('')
+
+                temp2_li = pie_temp.find_elements_by_xpath(
+                    ".//*[local-name() = 'svg']/*[local-name() = 'g']")
+                for x in range(1, len(temp2_li) - 1):
+                    try:
+                        pie2_intake_li[pie2_color_li.index(temp2_li[x].find_element_by_xpath(
+                            ".//*[local-name() = 'path']").get_attribute('fill'))] = temp2_li[x].find_element_by_xpath(".//*[local-name() = 'text']").text
+                    except NoSuchElementException:
+                        continue
+
+        
+        print(pie2_name_li)
+        print(pie2_intake_li)
+
+        str_pg_pie = serialize(dict(zip(pie2_name_li,pie2_intake_li))).decode('utf8')
+        
+        
+        
+        str_images = str(li_images)[1:-1].replace("'","")
+
+        str_vids = str(li_vids)[1:-1].replace("'","")
+        
+        facilities = str(facilities_list)[1:-1].replace("'","")
 
         name = name.replace(',', '$')
         typeofcoll = typeofcoll.replace(',', '$')
@@ -675,10 +626,10 @@ while count_coll <= 10:
         ownership = ownership.replace(',', '$')
         approved_by = approved_by.replace(',', '$')
         affiliated_to_text = affiliated_to_text.replace(',', '$')
-        str_alumni = str_alumni.replace(',', '$')
-        avg_age = avg_age.replace(',', '$')
-        courses = courses.replace(',', '$')
-        str_courses = str_courses.replace(',', '$')
+        
+        
+        
+        
 
         entry = [
             name,
@@ -709,11 +660,18 @@ while count_coll <= 10:
             str_ug_pie,
             str_pg_pie,
             str_alumni,
-            str_top_states,
+            top_states[0],
+            top_states[1],
             str_mode,
             gender_ratio,
-            avg_age,
-            str_in_geo,
+            avg_ageM,
+            avg_ageF,
+            in_data_li[0],
+            in_data_li[1],
+            in_data_li[2],
+            in_data_li[3],
+            in_data_li[4],
+            in_data_li[5],
             str_images,
             str_vids,
             courses,
@@ -726,13 +684,13 @@ while count_coll <= 10:
             ws.write(GLOBAL_OFFSET, col, data)
             if not data:
                 continue
-            wid = min(len(data) * 380, 9000)
+            wid = min(len(data) * 380, 12000)
             if ws.col(col).width < wid:
                 ws.col(col).width = wid
         wb.save(OUTPUT_FILE)
 
         driver.find_element_by_tag_name("body").send_keys(Keys.CONTROL + 'w')
-        time.sleep(0.5)
+        time.sleep(0.2)
         driver.find_element_by_tag_name(
             "body").send_keys(Keys.CONTROL + Keys.TAB)
         print('\n--------------------------------------------\n')
