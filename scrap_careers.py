@@ -21,7 +21,7 @@ import os
 from phpserialize import serialize
 
 
-NEW_XLS = 0  # To write into new file, change to '1'
+NEW_XLS = 1  # To write into new file, change to '1'
 
 
 PAGE_OFFSET = 0
@@ -49,12 +49,15 @@ def safe_get_xpath(xpath, attrib=None, parent=None):
             element = parent.find_element_by_xpath(xpath)
         else:
             element = driver.find_element_by_xpath(xpath)
-    except NoSuchElementException:
+        if attrib:
+            return element.get_attribute(attrib)
+        else:
+            return element.text
+    except:
         print(xpath, "was not found!!")
         return ""
-    if attrib:
-        return element.get_attribute(attrib)
-    return element.text
+    
+    
 
 
 def newCheckPoint(pages, entry_no):
@@ -423,8 +426,8 @@ while count_coll <= 10:
         except:
             continue
 
-        courses = driver.find_element_by_xpath(
-            "/html/body/div/div/div/div[3]/div/div/div/div/div/div/h4").text.replace('Number of Courses Available:', '')
+        courses = safe_get_xpath(
+            "/html/body/div/div/div/div[3]/div/div/div/div/div/div/h4").replace('Number of Courses Available:', '')
         print(courses)
         pg_exists = 0
         if check_exists_by_xpath("/html/body/div/div/div/div[3]/div/div/div/div/div/div/div/div/div"):
@@ -467,7 +470,8 @@ while count_coll <= 10:
                 course_dict = dict()
                 course_dict['cname'] = safe_get_xpath(
                     "/html/body/div/div/div/div[3]/div/div/div/div/h2")
-                print(course_dict['cname'])
+                if not course_dict['cname']:
+                    continue
 
                 eligibility = ''
                 #eligibility = driver.find_element_by_xpath("//span[@class='more-eligibility']").get_attribute('innerHTML').replace('<span class="readless-eligibility" style="color:blue; cursor:pointer;">...See Less</span>','')
@@ -503,11 +507,13 @@ while count_coll <= 10:
 
                 
 
-                courses_list.append(course_dict)
+                courses_list.append(serialize(course_dict).decode('utf8'))
 
                 driver.find_element_by_tag_name(
                     "body").send_keys(Keys.CONTROL + 'w')
                 time.sleep(0.3)
+                
+                
                 
 
             
@@ -524,7 +530,7 @@ while count_coll <= 10:
                 '\n!!!!!!!!!!!!!!!!!!!!!!!!NEXT!!!PAGE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n')
         
         skip=False
-        str_courses=serialize(courses_list).decode('utf8')
+        
         if check_exists_by_xpath("//div[@id='chart_div_ug']"):
             try:
                 driver.implicitly_wait(2)
@@ -677,7 +683,6 @@ while count_coll <= 10:
             courses,
             tot_ug,
             tot_pg,
-            str_courses
 
         ]
         for col, data in enumerate(entry):
@@ -687,6 +692,11 @@ while count_coll <= 10:
             wid = min(len(data) * 380, 12000)
             if ws.col(col).width < wid:
                 ws.col(col).width = wid
+        course_offset=len(entry)
+        for col,data in enumerate(courses_list):
+            ws.write(GLOBAL_OFFSET, col+course_offset, data)
+            ws.col(col).width = 20000
+            wb.save(OUTPUT_FILE)
         wb.save(OUTPUT_FILE)
 
         driver.find_element_by_tag_name("body").send_keys(Keys.CONTROL + 'w')
