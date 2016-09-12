@@ -77,7 +77,7 @@ if NEW_XLS:
     for col, head in enumerate(HEADER):
         ws.write(0, col, head, ulstyle)
         ws.col(col).width = min(len(head) * 380, 6000)
-    wb.save(OUTPUT_FILE)
+
 else:
     PAGE_OFFSET, ENTRY_OFFSET, GLOBAL_OFFSET = map(int, CHECKPOINT.readlines())
 
