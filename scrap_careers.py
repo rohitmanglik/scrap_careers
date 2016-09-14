@@ -21,7 +21,7 @@ import os
 from phpserialize import serialize
 
 
-RESUME = False
+RESUME = True
 USE_CACHE = False
 
 PAGE_OFFSET = 0
