@@ -1,6 +1,6 @@
 # When I wrote this, only God and I understood what I was doing
 # Now, God only knows :D
-
+from pyvirtualdisplay import Display
 from selenium import *
 from selenium import webdriver
 from selenium import selenium
@@ -20,6 +20,8 @@ import sys
 import os
 from phpserialize import serialize
 
+display = Display(visible=0, size=(1024, 768))
+display.start()
 
 RESUME = True
 USE_CACHE = False
